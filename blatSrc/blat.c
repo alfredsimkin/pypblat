@@ -770,6 +770,10 @@ void blat(char *dbFile, int queryCount, char **queryFiles, struct lineFile **lf,
     free(gvo);
 }
 
+void helloWorld() {
+    printf("Hello world\n");
+}
+
 int main(int argc, char *argv[])
 /* Process command line into global variables and call blat. */
 {
@@ -975,3 +979,4 @@ int main(int argc, char *argv[])
 
     return 0;
 }
+

@@ -1,0 +1,6 @@
+tags
+__pycache__
+*.o
+.idea
+*.so
+*.a

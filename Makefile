@@ -1,7 +1,7 @@
 MACHTYPE=x86_64
 
 CC=gcc
-CFLAGS=-O -Wall
+CFLAGS=-O -Wall -fPIC
 HG_INC=-I./inc -I./htslib
 HG_DEFS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_GNU_SOURCE -DMACHTYPE_$(MACHTYPE)
 
@@ -41,6 +41,9 @@ all: blat.o jkOwnLib.a jkweb.a htslib/libhts.a
 	$(CC) $(CFLAGS)  -o pblat blat.o jkOwnLib.a jkweb.a htslib/libhts.a  -lm -lpthread -lz -lssl -lcrypto
 	rm -f *.o *.a
 
+sharedlib: blat.o jkOwnLib.a jkweb.a htslib/libhts.a
+	$(CC) $(CFLAGS) -shared -Wl,-soname,libpblat.so -o libpblat.so $^ -lm -lpthread -lz -lssl -lcrypto
+
 jkweb.a: $(O1)
 	ar rcus jkweb.a $(O1)
 
@@ -57,8 +60,8 @@ $(O2): %.o: jkOwnLib/%.c
 	$(CC) $(CFLAGS) $(HG_DEFS) $(HG_INC) -c -o $@ $<
 
 htslib/libhts.a:
-	cd htslib && make
+	cd htslib && make CFLAGS="$(CFLAGS)"
 
 clean:
-	rm -f *.o *.a pblat
+	rm -f *.o *.a *.so htslib/libhts.a pblat
 

@@ -28,7 +28,7 @@ RANLIB = ranlib
 
 CPPFLAGS =
 # TODO: probably update cram code to make it compile cleanly with -Wc++-compat
-CFLAGS   += -DKNETFILE_HOOKS -DUCSC_CRAM
+override CFLAGS   += -DKNETFILE_HOOKS -DUCSC_CRAM
 EXTRA_CFLAGS_PIC = -fpic
 LDFLAGS  =
 LIBS     =
