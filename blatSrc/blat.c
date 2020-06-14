@@ -25,6 +25,7 @@
 #include <pthread.h>
 #include <dirent.h>
 #include <string.h>
+#include <unistd.h>
 
 
 /* Variables shared with other modules.  Set in this module, read only
@@ -1039,9 +1040,10 @@ int blatWithArgs(char *p_referenceFile, char *p_readFile, char *p_pipeDir, char 
         errAbort("The pipeDir you specified does not exist or is not accessible");
 
 //    out[0]=mustOpen(p_pipeDir, "w");
+    pid_t pid = getpid();
     for (i=0; i<threads; i++)
     {
-        sprintf(buf, "%s/pblat.fifo.%d", p_pipeDir, i);
+        sprintf(buf, "%s/pblat.fifo.%d-%d", p_pipeDir, pid, i);
         out[i] = mustOpen(buf, "w");
     }
 

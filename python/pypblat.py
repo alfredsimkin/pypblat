@@ -1,6 +1,10 @@
 from tempfile import gettempdir
 from ctypes import *
 import sys
+import os
+from pathlib import Path
+from multiprocessing import Process
+from typing import List
 
 _pblat = cdll.LoadLibrary('python/libpblat.so')
 # int blatWithArgs(char *t, char* q, boolean prot, char *ooc, int threads, int tileSize, int stepSize, int oneOff, int minMatch, int minSocre, float minIdentity, int maxGap, 
@@ -75,6 +79,28 @@ def _call_with_default_args():
             False # c_bool                   extendThroughN
     )
 
+def make_fifos(pattern: str, num_threads: int) -> List[Path]:
+    """Creates PID-specific named pipes"""
+    pid = os.getpid()
+    fifos = [Path(f'{pattern}/pblat.fifo.{pid}-{idx}') for idx in range(num_threads)]
+    for fifo in fifos:
+        os.mkfifo(fifo)
+    return fifos
+
+def rm_files(files: List[Path]) -> None:
+    """Removes all files in path"""
+    for fifo in files:
+        fifo.unlink()
+
+def read_named_pipe(path: Path) -> None:
+    """Pipes can only be written to if they have a reader on the other end. If there's no reader, any write to the pipe
+    pauses. Hence, these are opened before the writers."""
+    lines = 0
+    with path.open('r') as f:
+        for line in f:
+            lines += 1
+        print(f"PID {os.getpid()} finished! Read {lines} lines.")
+
 
 def run_pblat(referenceFile: str, readFile: str, pipePattern: str=None, t=None, q=None,
         prot=False, ooc=None, threads=-1, tileSize=-1, stepSize=-1, oneOff=-1,
@@ -95,12 +121,35 @@ def run_pblat(referenceFile: str, readFile: str, pipePattern: str=None, t=None, 
     if pipePattern == None:
         pipePattern = gettempdir()
 
+    if threads == -1:
+        threads = len(os.sched_getaffinity(0))
+
+    if out == None:
+        out = "pslx"
+
+    if tileSize == -1:
+        tileSize = 10
+
+    named_pipes = make_fifos(pipePattern, threads)
+
+    # First setup the receiving end of the pipes and start them.
+    reading_subprocesses = [Process(target=read_named_pipe, args=(path,)) for path in named_pipes]
+    for reader in reading_subprocesses:
+        reader.start()
+
     _pblat.blatWithArgs(bytes(referenceFile, 'utf8'), bytes(readFile, 'utf8'),
             bytes(pipePattern, 'utf8'), t, q, prot, ooc, threads, tileSize,
             stepSize, oneOff, minMatch, minScore, minIdentity, maxGap, noHead,
             makeOoc, repMatch, mask, qMask, repeats, minRepDivergence, dots,
-            trimT, noTrimA, trimHardA, fastMap, out, False, maxIntron,
-            extendThroughN)
+            trimT, noTrimA, trimHardA, fastMap, bytes(out, 'utf8'), False,
+            maxIntron, extendThroughN)
+
+    # Wait for all the readers to terminate
+    for subprocess in reading_subprocesses:
+        subprocess.join()
+
+    # cleanup fifos
+    rm_files(named_pipes)
 
 # ./pblat \
 #   /home/alfred/big_data/Dropbox/Travis_Alfred_shared/reference_files/TEomes/COPIA_DM_copies_plus_shCopia.fa  \ reference file
