@@ -833,9 +833,9 @@ void remove_trailing_slash(char *s) {
     }
 }
 
-int blatWithArgs(char *p_t, char* p_q, _Bool p_prot, char *p_ooc, int p_threads, int p_tileSize, int p_stepSize, int p_oneOff, int p_minMatch, int p_minScore, float p_minIdentity, int p_maxGap, 
+int blatWithArgs(char *p_referenceFile, char *p_readFile, char *p_pipeDir, char *p_t, char* p_q, _Bool p_prot, char *p_ooc, int p_threads, int p_tileSize, int p_stepSize, int p_oneOff, int p_minMatch, int p_minScore, float p_minIdentity, int p_maxGap, 
         _Bool p_noHead, char *p_makeOoc, int p_repMatch, char *p_mask, char *p_qMask, char *p_repeats, float p_minRepDivergence, int p_dots, _Bool p_trimT, _Bool p_noTrimA, _Bool p_trimHardA,
-        _Bool p_fastMap, char *p_out, _Bool p_fine, int p_maxIntron, _Bool p_extendThroughN, char *p_pipeDir, char *p_queryFile)
+        _Bool p_fastMap, char *p_out, _Bool p_fine, int p_maxIntron, _Bool p_extendThroughN)
 {
     char msg[] = ""
         "Args:\n\t"
@@ -867,11 +867,16 @@ int blatWithArgs(char *p_t, char* p_q, _Bool p_prot, char *p_ooc, int p_threads,
         "fine: %d\n\t"
         "maxIntron: %d\n\t"
         "extendThroughN: %d\n\t"
-        "pipePattern: %s\n\t"
-        "queryFile: %s\n";
+        "referenceFile: %s\n\t"
+        "readFile: %s\n\t"
+        "pipeDir: %s\n";
 
-    printf(msg, p_t, p_q, p_prot, p_ooc, p_threads, p_tileSize, p_stepSize, p_oneOff, p_minMatch, p_minScore, p_minIdentity, p_maxGap, p_noHead, p_makeOoc, p_repMatch, p_mask, 
-            p_qMask, p_repeats, p_minRepDivergence, p_dots, p_trimT, p_noTrimA, p_trimHardA, p_fastMap, p_out, p_fine, p_maxIntron, p_extendThroughN, p_pipeDir, p_queryFile);
+    printf(msg, p_t, p_q, p_prot, p_ooc, p_threads, p_tileSize, p_stepSize,
+            p_oneOff, p_minMatch, p_minScore, p_minIdentity, p_maxGap,
+            p_noHead, p_makeOoc, p_repMatch, p_mask, p_qMask, p_repeats,
+            p_minRepDivergence, p_dots, p_trimT, p_noTrimA, p_trimHardA,
+            p_fastMap, p_out, p_fine, p_maxIntron, p_extendThroughN,
+            p_referenceFile, p_readFile, p_pipeDir);
 
     fflush(0);
 
@@ -998,7 +1003,7 @@ int blatWithArgs(char *p_t, char* p_q, _Bool p_prot, char *p_ooc, int p_threads,
         errAbort("Output name must be specified when using multi-threads");
 
 
-    gfClientFileArray(p_queryFile, &queryFiles, &queryCount);
+    gfClientFileArray(p_readFile, &queryFiles, &queryCount);
     if (queryCount > 1)
         errAbort("pblat does not support using list of file names as query. Please query each of the input files separately.");
 
@@ -1037,8 +1042,21 @@ int blatWithArgs(char *p_t, char* p_q, _Bool p_prot, char *p_ooc, int p_threads,
     for (i=0; i<threads; i++)
     {
         sprintf(buf, "%s/pblat.fifo.%d", p_pipeDir, i);
-        out[i] = mustOpen(buf, "w+");
+        out[i] = mustOpen(buf, "w");
     }
+
+    /* Call routine that does the work. */
+    blat(p_referenceFile, queryCount, queryFiles, lf, out);
+
+    for (i=0; i<threads; i++)
+        lineFileClose(&(lf[i]));
+    free(lf);
+
+    for (i=0; i<threads; i++)
+    {
+        carefulClose(&(out[i]));
+    }
+    free(out);
 
     // END OF ROUTINE
 

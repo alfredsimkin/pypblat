@@ -7,6 +7,9 @@ _pblat = cdll.LoadLibrary('python/libpblat.so')
 #         boolean noHead, char *makeOoc, int repMatch, char *mask, char *qMask, char *repeats, float minRepDivergence, int dots, boolean trimT, boolean noTrimA, boolean trimHardA,
 #         boolean fastMap, char *out, boolean fine, int maxIntron, boolean extendThroughN)
 _pblat.blatWithArgs.argtypes = [
+        c_char_p,                   # referenceFile
+        c_char_p,                   # readFile
+        c_char_p,                   # pipePattern
         c_char_p,                   # t
         c_char_p,                   # q
         c_bool,                     # prot
@@ -34,13 +37,14 @@ _pblat.blatWithArgs.argtypes = [
         c_char_p,                   # out
         c_bool,                     # fine
         c_int,                      # maxIntron
-        c_bool,                     # extendThroughN
-        c_char_p,                   # pipePattern
-        c_char_p                    # queryFile
+        c_bool                      # extendThroughN
     ]
 
 def _call_with_default_args():
     _pblat.blatWithArgs(
+            None, # c_char_p                  referenceFile
+            None, # c_char_p                  readFile
+            None,# c_char_p                   pipePattern
             None, # c_char_p,                 t
             None, # c_char_p,                 q
             False, # c_bool,                  prot
@@ -68,13 +72,11 @@ def _call_with_default_args():
             None, # c_char_p                  out
             False, # c_bool,                  fine
             -1, # c_int,                      maxIntron
-            False, # c_bool                   extendThroughN
-            None,# c_char_p                   pipePattern
-            None, # c_char_p                  queryFile
+            False # c_bool                   extendThroughN
     )
 
 
-def run_pblat(queryFile: str, pipePattern: str=None, t=None, q=None,
+def run_pblat(referenceFile: str, readFile: str, pipePattern: str=None, t=None, q=None,
         prot=False, ooc=None, threads=-1, tileSize=-1, stepSize=-1, oneOff=-1,
         minMatch=-1, minScore=-1, minIdentity=-1.0, maxGap=-1, noHead=False,
         makeOoc=None, repMatch=-1, mask=None, qMask=None, repeats=None,
@@ -82,16 +84,29 @@ def run_pblat(queryFile: str, pipePattern: str=None, t=None, q=None,
         trimHardA=False, fastMap=False, out=None, maxIntron=-1,
         extendThroughN=False):
 
-    if queryFile == None:
+    if referenceFile == None:
+        print("You must specify a reference file", file=sys.stderr)
+        return
+
+    if readFile == None:
         print("You must specify a query file", file=sys.stderr)
         return
 
     if pipePattern == None:
         pipePattern = gettempdir()
 
-    _pblat.blatWithArgs(t, q, prot, ooc, threads, tileSize, stepSize, oneOff,
-            minMatch, minScore, minIdentity, maxGap, noHead, makeOoc, repMatch,
-            mask, qMask, repeats, minRepDivergence, dots, trimT, noTrimA,
-            trimHardA, fastMap, out, False, maxIntron, extendThroughN,
-            bytes(pipePattern, 'utf8'), bytes(queryFile, 'utf8'))
+    _pblat.blatWithArgs(bytes(referenceFile, 'utf8'), bytes(readFile, 'utf8'),
+            bytes(pipePattern, 'utf8'), t, q, prot, ooc, threads, tileSize,
+            stepSize, oneOff, minMatch, minScore, minIdentity, maxGap, noHead,
+            makeOoc, repMatch, mask, qMask, repeats, minRepDivergence, dots,
+            trimT, noTrimA, trimHardA, fastMap, out, False, maxIntron,
+            extendThroughN)
+
+# ./pblat \
+#   /home/alfred/big_data/Dropbox/Travis_Alfred_shared/reference_files/TEomes/COPIA_DM_copies_plus_shCopia.fa  \ reference file
+#   /home/owynblatt/big_data/Run/simulated_reads/sample_01.fasta  \ read file
+#   -threads=30 \
+#   -out=pslx \
+#   -tileSize=10 \
+#   testout
 
