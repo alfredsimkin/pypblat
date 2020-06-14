@@ -23,7 +23,8 @@
 
 #include <sys/types.h>
 #include <pthread.h>
-
+#include <dirent.h>
+#include <string.h>
 
 
 /* Variables shared with other modules.  Set in this module, read only
@@ -205,7 +206,7 @@ void searchOneStrand(struct dnaSeq *seq, struct genoFind *gf, FILE *psl,
         "when the -fastMap option is used."	
         , MAXSINGLEPIECESIZE, seq->name, seq->size);
     
-    gfLongDnaInMem(seq, gf, isRc, minScore, qMaskBits, gvo, fastMap, optionExists("fine"));
+    gfLongDnaInMem(seq, gf, isRc, minScore, qMaskBits, gvo, fastMap, FALSE);
 }
 
 
@@ -770,8 +771,278 @@ void blat(char *dbFile, int queryCount, char **queryFiles, struct lineFile **lf,
     free(gvo);
 }
 
-void helloWorld() {
-    printf("Hello world\n");
+//struct optionSpec options[] = {
+//    {"t", OPTION_STRING},
+//    {"q", OPTION_STRING},
+//    {"prot", OPTION_BOOLEAN},
+//    {"ooc", OPTION_STRING},
+//    {"threads", OPTION_INT},
+//    {"tileSize", OPTION_INT},
+//    {"stepSize", OPTION_INT},
+//    {"oneOff", OPTION_INT},
+//    {"minMatch", OPTION_INT},
+//    {"minScore", OPTION_INT},
+//    {"minIdentity", OPTION_FLOAT},
+//    {"maxGap", OPTION_INT},
+//    {"noHead", OPTION_BOOLEAN},
+//    {"makeOoc", OPTION_STRING},
+//    {"repMatch", OPTION_INT},
+//    {"mask", OPTION_STRING},
+//    {"qMask", OPTION_STRING},
+//    {"repeats", OPTION_STRING},
+//    {"minRepDivergence", OPTION_FLOAT},
+//    {"dots", OPTION_INT},
+//    {"trimT", OPTION_BOOLEAN},
+//    {"noTrimA", OPTION_BOOLEAN},
+//    {"trimHardA", OPTION_BOOLEAN},
+//    {"fastMap", OPTION_BOOLEAN},
+//    {"out", OPTION_STRING},
+//    {"fine", OPTION_BOOLEAN},
+//    {"maxIntron", OPTION_INT},
+//    {"extendThroughN", OPTION_BOOLEAN},
+//    {NULL, 0},
+//};
+_Bool is_float_default(float f) {
+    return f < 0.0;
+}
+
+_Bool is_int_default(int i) {
+    return i == 0;
+}
+
+int int_or_default(int i, int d) {
+    return i < 0 ? d : i;
+}
+
+float float_or_default(float f, float d) {
+    return f < 0.0 ? d : f;
+}
+
+_Bool is_string_default(char *p) {
+    return  p == NULL;
+}
+
+char * string_or_default(char *s, char *d) {
+    return s != NULL ? s : d;
+}
+
+void remove_trailing_slash(char *s) {
+    size_t len = strlen(s);
+    if (s[len - 1] == '/') {
+        s[len - 1] = '\0';
+    }
+}
+
+int blatWithArgs(char *p_t, char* p_q, _Bool p_prot, char *p_ooc, int p_threads, int p_tileSize, int p_stepSize, int p_oneOff, int p_minMatch, int p_minScore, float p_minIdentity, int p_maxGap, 
+        _Bool p_noHead, char *p_makeOoc, int p_repMatch, char *p_mask, char *p_qMask, char *p_repeats, float p_minRepDivergence, int p_dots, _Bool p_trimT, _Bool p_noTrimA, _Bool p_trimHardA,
+        _Bool p_fastMap, char *p_out, _Bool p_fine, int p_maxIntron, _Bool p_extendThroughN, char *p_pipeDir, char *p_queryFile)
+{
+    char msg[] = ""
+        "Args:\n\t"
+        "t: %s\n\t"
+        "q: %s\n\t"
+        "prot: %d\n\t"
+        "ooc: %s\n\t"
+        "threads: %d\n\t"
+        "tileSize: %d\n\t"
+        "stepSize: %d\n\t"
+        "oneOff: %d\n\t"
+        "minMatch: %d\n\t"
+        "minScore: %d\n\t"
+        "minIdentity: %f\n\t"
+        "maxGap: %d\n\t"
+        "noHead: %d\n\t"
+        "makeOoc: %s\n\t"
+        "repMatch: %d\n\t"
+        "mask: %s\n\t"
+        "qMask: %s\n\t"
+        "repeats: %s\n\t"
+        "minRepDivergence: %f\n\t"
+        "dots: %d\n\t"
+        "trimT: %d\n\t"
+        "noTrimA: %d\n\t"
+        "trimHardA: %d\n\t"
+        "fastMap: %d\n\t"
+        "out: %s\n\t"
+        "fine: %d\n\t"
+        "maxIntron: %d\n\t"
+        "extendThroughN: %d\n\t"
+        "pipePattern: %s\n\t"
+        "queryFile: %s\n";
+
+    printf(msg, p_t, p_q, p_prot, p_ooc, p_threads, p_tileSize, p_stepSize, p_oneOff, p_minMatch, p_minScore, p_minIdentity, p_maxGap, p_noHead, p_makeOoc, p_repMatch, p_mask, 
+            p_qMask, p_repeats, p_minRepDivergence, p_dots, p_trimT, p_noTrimA, p_trimHardA, p_fastMap, p_out, p_fine, p_maxIntron, p_extendThroughN, p_pipeDir, p_queryFile);
+
+    fflush(0);
+
+
+    // START OF ROUTINE
+    boolean tIsProtLike, qIsProtLike;
+    char buf[1024];
+    char **queryFiles;
+    FILE **out;
+    struct lineFile **lf;
+    int  queryCount;
+    int  i, cnt, tmp;
+
+    unsigned faFastBufSize = 0;
+    DNA      *faFastBuf = NULL;
+
+    /* Get database and query sequence types and make sure they are
+     * legal and compatable. */
+    if (p_prot)
+        qType = tType = gftProt;
+    if (!is_string_default(p_t))
+        tType = gfTypeFromName(p_t);
+    trimA = FALSE;
+    trimT = p_trimT;
+
+    trimHardA = p_trimHardA;
+    switch (tType)
+    {
+    case gftProt:
+    case gftDnaX:
+        tIsProtLike = TRUE;
+        break;
+    case gftDna:
+        tIsProtLike = FALSE;
+        break;
+    default:
+        tIsProtLike = FALSE;
+        errAbort("Illegal value for 't' parameter");
+        break;
+    }
+
+    if (!is_string_default(p_q))
+        qType = gfTypeFromName(p_q);
+    if (qType == gftRnaX || qType == gftRna)
+        trimA = TRUE;
+    if (p_noTrimA)
+        trimA = FALSE;
+    switch (qType)
+    {
+    case gftProt:
+    case gftDnaX:
+    case gftRnaX:
+        minIdentity = 25;
+        qIsProtLike = TRUE;
+        break;
+    default:
+        qIsProtLike = FALSE;
+        break;
+    }
+    if ((tIsProtLike ^ qIsProtLike) != 0)
+        errAbort("t and q must both be either protein or dna");
+
+
+    /* Set default tile size for protein-based comparisons. */
+    if (tIsProtLike)
+    {
+        tileSize = 5;
+        minMatch = 1;
+        oneOff = FALSE;
+        maxGap = 0;
+    }
+
+    /* Get tile size and related parameters from user and make sure
+     * they are within range. */
+    tileSize = int_or_default(p_tileSize, tileSize);
+    stepSize = int_or_default(p_stepSize, tileSize);
+    minMatch = int_or_default(p_minMatch, minMatch);
+    oneOff = !is_int_default(p_oneOff);
+    fastMap = p_fastMap;
+    minScore = int_or_default(p_minScore, minScore);
+    maxGap = int_or_default(p_maxGap, maxGap);
+    minRepDivergence = float_or_default(p_minRepDivergence, minRepDivergence);
+    minIdentity = float_or_default(p_minIdentity, minIdentity);
+    gfCheckTileSize(tileSize, tIsProtLike);
+    if (minMatch < 0)
+        errAbort("minMatch must be at least 1");
+    if (maxGap > 100)
+        errAbort("maxGap must be less than 100");
+
+    /* Set repMatch parameter from command line, or
+     * to reasonable value that depends on tile size. */
+    if (!is_int_default(p_repMatch))
+        repMatch = p_repMatch;
+    else
+        repMatch = gfDefaultRepMatch(tileSize, stepSize, tIsProtLike);
+
+    /* Gather last few command line options. */
+    noHead = p_noHead;
+    ooc = p_ooc;
+    makeOoc = p_makeOoc;
+    mask = p_mask;
+    qMask = p_qMask;
+    repeats = p_repeats;
+
+    if (repeats != NULL && mask != NULL && differentString(repeats, mask))
+        errAbort("The -mask and -repeat settings disagree.  "
+                 "You can just omit -repeat if -mask is on");
+    if (mask != NULL)	/* Mask setting will also set repeats. */
+        repeats = mask;
+
+    outputFormat = string_or_default(p_out, outputFormat);
+    dotEvery = int_or_default(p_dots, 0);
+
+    /* set global for fuzzy find functions */
+    setFfIntronMax(int_or_default(p_maxIntron, ffIntronMaxDefault));
+    setFfExtendThroughN(p_extendThroughN);
+
+    /* Get threads number */
+    threads = int_or_default(p_threads, threads);
+    if (threads <= 0)
+        errAbort("threads must be at least 1");
+
+    if (threads > 1 && (p_pipeDir==NULL || strcmp(p_pipeDir,"")==0 || strcmp(p_pipeDir, "stdin")==0))
+        errAbort("Output name must be specified when using multi-threads");
+
+
+    gfClientFileArray(p_queryFile, &queryFiles, &queryCount);
+    if (queryCount > 1)
+        errAbort("pblat does not support using list of file names as query. Please query each of the input files separately.");
+
+    lf=(struct lineFile **)malloc(sizeof(struct lineFile *) * threads);
+    for (i=0; i<threads; i++)
+    {
+        lf[i] = lineFileOpen(queryFiles[0], TRUE);
+    }
+    
+    queryCount=0;
+    struct lineFile *tlf = lineFileOpen(queryFiles[0], TRUE);
+    while (faMixedSpeedReadNext(tlf, NULL, NULL, NULL, &faFastBuf, &faFastBufSize))
+        queryCount++;
+    queryCount=queryCount/threads+1;
+    
+    lineFileRewind(tlf);
+    for (i=1; i<threads; i++)
+    {
+        cnt=queryCount;
+        while (cnt-- && faMixedSpeedReadNext(tlf, NULL, NULL, NULL, &faFastBuf, &faFastBufSize));
+        lineFileSeek(lf[i], tlf->bufOffsetInFile + tlf->lineStart, SEEK_SET);
+    }
+    lineFileClose(&tlf);
+    faFreeFastBuf(&faFastBuf, &faFastBufSize);
+
+
+    out=(FILE**)malloc(sizeof(FILE*) * threads);
+    remove_trailing_slash(p_pipeDir);
+    DIR *pipeDir = opendir(p_pipeDir);
+    if (pipeDir)
+        closedir(pipeDir);
+    else 
+        errAbort("The pipeDir you specified does not exist or is not accessible");
+
+//    out[0]=mustOpen(p_pipeDir, "w");
+    for (i=0; i<threads; i++)
+    {
+        sprintf(buf, "%s/pblat.fifo.%d", p_pipeDir, i);
+        out[i] = mustOpen(buf, "w+");
+    }
+
+    // END OF ROUTINE
+
+    return 0;
 }
 
 int main(int argc, char *argv[])
@@ -857,6 +1128,7 @@ int main(int argc, char *argv[])
         maxGap = 0;
     }
 
+
     /* Get tile size and related parameters from user and make sure
      * they are within range. */
     tileSize = optionInt("tileSize", tileSize);
@@ -899,7 +1171,6 @@ int main(int argc, char *argv[])
     /* set global for fuzzy find functions */
     setFfIntronMax(optionInt("maxIntron", ffIntronMaxDefault));
     setFfExtendThroughN(optionExists("extendThroughN"));
-
 
     /* Get threads number */
     threads = optionInt("threads", threads);

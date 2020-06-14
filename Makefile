@@ -1,7 +1,7 @@
 MACHTYPE=x86_64
 
 CC=gcc
-CFLAGS=-O -Wall -fPIC
+CFLAGS=-g -Wall -fPIC
 HG_INC=-I./inc -I./htslib
 HG_DEFS=-D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -D_GNU_SOURCE -DMACHTYPE_$(MACHTYPE)
 
@@ -43,6 +43,7 @@ all: blat.o jkOwnLib.a jkweb.a htslib/libhts.a
 
 sharedlib: blat.o jkOwnLib.a jkweb.a htslib/libhts.a
 	$(CC) $(CFLAGS) -shared -Wl,-soname,libpblat.so -o libpblat.so $^ -lm -lpthread -lz -lssl -lcrypto
+	mv libpblat.so python
 
 jkweb.a: $(O1)
 	ar rcus jkweb.a $(O1)
