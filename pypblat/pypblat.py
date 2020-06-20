@@ -7,14 +7,14 @@ from multiprocessing import Process, Queue
 from typing import List, Dict
 import random
 from functools import reduce
-import io
 import csv
 from . import pslx_reader
+from .te_stats import ReferenceStatistics, make_reference_statistics
+
+UTF8 = 'utf8'
 
 _pblat = cdll.LoadLibrary('pypblat/libpblat.so')
-# int blatWithArgs(char *t, char* q, boolean prot, char *ooc, int threads, int tileSize, int stepSize, int oneOff, int minMatch, int minSocre, float minIdentity, int maxGap,
-#         boolean noHead, char *makeOoc, int repMatch, char *mask, char *qMask, char *repeats, float minRepDivergence, int dots, boolean trimT, boolean noTrimA, boolean trimHardA,
-#         boolean fastMap, char *out, boolean fine, int maxIntron, boolean extendThroughN)
+
 _pblat.blatWithArgs.argtypes = [
     c_char_p,  # referenceFile
     c_char_p,  # readFile
@@ -173,7 +173,7 @@ def read_named_pipe(path: Path, queue: Queue) -> None:
         queue.put(transcript_expressions)
 
 
-def write_output(results: Dict[str, TranscriptionExpressResults], out) -> None:
+def write_output(results: Dict[str, TranscriptionExpressResults], stats: ReferenceStatistics, out) -> None:
 
     writer = csv.writer(out)
     fieldnames = ['TE', 'non-unique_reads', 'unique_reads', 'randomly_mapped_reads', 'split_reads', 'fraction_unique',
@@ -199,7 +199,7 @@ def merge_results(results: List[Dict[str, TranscriptionExpressResults]]) -> Dict
     return d
 
 
-def run_pblat(referenceFile: str, readFile: str, pipePattern: str = None, t=None, q=None,
+def run_pblat(referenceFile: str, readFile: str, pipePattern: str = None, readLength = 10, t=None, q=None,
               prot=False, ooc=None, threads=-1, tileSize=-1, stepSize=-1, oneOff=-1,
               minMatch=-1, minScore=-1, minIdentity=-1.0, maxGap=-1, noHead=False,
               makeOoc=None, repMatch=-1, mask=None, qMask=None, repeats=None,
@@ -227,6 +227,7 @@ def run_pblat(referenceFile: str, readFile: str, pipePattern: str = None, t=None
         tileSize = 10
 
     named_pipes = make_fifos(pipePattern, threads)
+    stats = make_reference_statistics(readLength, Path(referenceFile))
 
     # First setup the receiving end of the pipes and start them.
     queue = Queue()
@@ -234,17 +235,17 @@ def run_pblat(referenceFile: str, readFile: str, pipePattern: str = None, t=None
     for reader in reading_subprocesses:
         reader.start()
 
-    _pblat.blatWithArgs(bytes(referenceFile, 'utf8'), bytes(readFile, 'utf8'),
-                        bytes(pipePattern, 'utf8'), t, q, prot, ooc, threads, tileSize,
+    _pblat.blatWithArgs(bytes(referenceFile, UTF8), bytes(readFile, UTF8),
+                        bytes(pipePattern, UTF8), t, q, prot, ooc, threads, tileSize,
                         stepSize, oneOff, minMatch, minScore, minIdentity, maxGap, noHead,
                         makeOoc, repMatch, mask, qMask, repeats, minRepDivergence, dots,
-                        trimT, noTrimA, trimHardA, fastMap, bytes(out, 'utf8'), False,
+                        trimT, noTrimA, trimHardA, fastMap, bytes(out, UTF8), False,
                         maxIntron, extendThroughN)
 
     results = [queue.get() for _ in range(threads)]
     merged_result = merge_results(results)
 
-    write_output(merged_result, sys.stdout)
+    write_output(merged_result, stats, sys.stdout)
 
     # Wait for all the readers to terminate
     for subprocess in reading_subprocesses:
@@ -252,11 +253,3 @@ def run_pblat(referenceFile: str, readFile: str, pipePattern: str = None, t=None
 
     # cleanup fifos
     rm_files(named_pipes)
-
-# ./pblat \
-#   /home/alfred/big_data/Dropbox/Travis_Alfred_shared/reference_files/TEomes/COPIA_DM_copies_plus_shCopia.fa  \ reference file
-#   /home/owynblatt/big_data/Run/simulated_reads/sample_01.fasta  \ read file
-#   -threads=30 \
-#   -out=pslx \
-#   -tileSize=10 \
-#   testout
