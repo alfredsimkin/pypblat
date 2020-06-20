@@ -1,0 +1,6 @@
+With "g"
+python3 -c   20885.90s user 333.60s system 3728% cpu 9:29.06 total
+
+With "-03"
+python3 -c   12204.74s user 326.29s system 3814% cpu 5:28.50 total
+
