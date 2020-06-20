@@ -872,14 +872,14 @@ int blatWithArgs(char *p_referenceFile, char *p_readFile, char *p_pipeDir, char 
         "readFile: %s\n\t"
         "pipeDir: %s\n";
 
-    printf(msg, p_t, p_q, p_prot, p_ooc, p_threads, p_tileSize, p_stepSize,
-            p_oneOff, p_minMatch, p_minScore, p_minIdentity, p_maxGap,
-            p_noHead, p_makeOoc, p_repMatch, p_mask, p_qMask, p_repeats,
-            p_minRepDivergence, p_dots, p_trimT, p_noTrimA, p_trimHardA,
-            p_fastMap, p_out, p_fine, p_maxIntron, p_extendThroughN,
-            p_referenceFile, p_readFile, p_pipeDir);
-
-    fflush(0);
+//    printf(msg, p_t, p_q, p_prot, p_ooc, p_threads, p_tileSize, p_stepSize,
+//            p_oneOff, p_minMatch, p_minScore, p_minIdentity, p_maxGap,
+//            p_noHead, p_makeOoc, p_repMatch, p_mask, p_qMask, p_repeats,
+//            p_minRepDivergence, p_dots, p_trimT, p_noTrimA, p_trimHardA,
+//            p_fastMap, p_out, p_fine, p_maxIntron, p_extendThroughN,
+//            p_referenceFile, p_readFile, p_pipeDir);
+//
+//    fflush(0);
 
 
     // START OF ROUTINE

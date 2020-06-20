@@ -43,7 +43,7 @@ all: blat.o jkOwnLib.a jkweb.a htslib/libhts.a
 
 sharedlib: blat.o jkOwnLib.a jkweb.a htslib/libhts.a
 	$(CC) $(CFLAGS) -shared -Wl,-soname,libpblat.so -o libpblat.so $^ -lm -lpthread -lz -lssl -lcrypto
-	mv libpblat.so python
+	mv libpblat.so pypblat
 
 jkweb.a: $(O1)
 	ar rcus jkweb.a $(O1)
