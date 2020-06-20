@@ -5,20 +5,20 @@ from typing import List
 
 @dataclass
 class PslxLine:
-    match: int      # 0
+    match: int  # 0
     mismatch: int  # 1
     rep_match: int  # 2
     ns: int  # 3
     q_gap_count: int  # 4
-    q_gap_bases: int    # 5
-    t_gap_count: int    # 5
-    t_gap_bases: int    # 5
-    strand: str    # 5
-    q_name: str    # 9
+    q_gap_bases: int  # 5
+    t_gap_count: int  # 5
+    t_gap_bases: int  # 5
+    strand: str  # 5
+    q_name: str  # 9
     q_size: int
     q_start: int
     q_end: int
-    t_name: str     # 13
+    t_name: str  # 13
     t_size: int
     t_start: int
     t_end: int
@@ -34,6 +34,7 @@ class PslxLine:
 
 def as_list(t: type, s: str):
     return [t(s) for s in s.split(',') if s]
+
 
 def cast(t, v):
     return t(v)

@@ -7,8 +7,9 @@ verify_ssl = true
 
 [packages]
 click = "*"
-pypblat = {editable = true,path = "."}
+pypblat = {path = "."}
 biopython = "*"
+dataclasses = "*"
 
 [requires]
 python_version = "3.8"
