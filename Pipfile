@@ -4,10 +4,10 @@ url = "https://pypi.org/simple"
 verify_ssl = true
 
 [dev-packages]
+pypblat = {editable = true,path = "."}
 
 [packages]
 click = "*"
-pypblat = {path = "."}
 biopython = "*"
 dataclasses = "*"
 
