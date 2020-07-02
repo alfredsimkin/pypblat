@@ -49,9 +49,11 @@ class PslxReader:
         return self
 
     def __next__(self):
+
         line = next(self.csv_reader)
         if not line:
-            raise StopIteration()
+            raise StopIteration
+
         return PslxLine(*([cast(PslxLine.types[i], x) for i, x in enumerate(line[:-5])]),
                         as_list(int, line[-5]),
                         as_list(int, line[-4]),

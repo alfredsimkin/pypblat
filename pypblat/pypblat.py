@@ -155,10 +155,14 @@ def read_named_pipe(path: Path, queue: Queue) -> None:
         reader = pslx_reader.PslxReader(f)
 
         # Init the first record
-        record = next(reader)
-        score, q_name, t_name = record.match, record.q_name, record.t_name
-        working_record = TranscriptionExpressionValues(q_name)
-        working_record.update(t_name, score)
+        try:
+            record = next(reader)
+            score, q_name, t_name = record.match, record.q_name, record.t_name
+            working_record = TranscriptionExpressionValues(q_name)
+            working_record.update(t_name, score)
+
+        except StopIteration: # There are no records
+            pass
 
         # Handle all the other records
         for record in reader:
