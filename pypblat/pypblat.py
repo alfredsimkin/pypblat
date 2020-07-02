@@ -185,8 +185,15 @@ def write_output(results: Dict[str, TranscriptionExpressResults], stats: Referen
     writer.writerow(fieldnames)
 
     for k, v in results.items():
+        RPU=0
+        if k in stats.unique_counts:
+            exp_unique_count=stats.unique_counts[k]
+        else:
+            exp_unique_count=0
+        if exp_unique_count!=0:
+            RPU=v.unique_reads/exp_unique_count        
         writer.writerow((k, v.non_unique_reads, v.unique_reads, v.randomly_mapped_reads, v.split_reads,
-                         v.unique_over_total(), 0, 0, 0))
+                         v.unique_over_total(), 0, exp_unique_count, RPU))
 
 
 def merge_results(results: List[Dict[str, TranscriptionExpressResults]]) -> Dict[str, TranscriptionExpressResults]:
