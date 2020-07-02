@@ -203,13 +203,15 @@ def merge_results(results: List[Dict[str, TranscriptionExpressResults]]) -> Dict
     return d
 
 
-def run_pblat(referenceFile: str, readFile: str, pipePattern: str = None, readLength = 10, t=None, q=None,
-              prot=False, ooc=None, threads=-1, tileSize=-1, stepSize=-1, oneOff=-1,
-              minMatch=-1, minScore=-1, minIdentity=-1.0, maxGap=-1, noHead=False,
-              makeOoc=None, repMatch=-1, mask=None, qMask=None, repeats=None,
-              minRepDivergence=-1.0, dots=-1, trimT=False, noTrimA=False,
-              trimHardA=False, fastMap=False, out=None, maxIntron=-1,
-              extendThroughN=False):
+def run_pblat(referenceFile: str, readFile: str, pipePattern: str = None,
+        readLength = 10, outfile=None, t=None, q=None, prot=False, ooc=None,
+        threads=-1, tileSize=-1, stepSize=-1, oneOff=-1, minMatch=-1,
+        minScore=-1, minIdentity=-1.0, maxGap=-1, noHead=False, makeOoc=None,
+        repMatch=-1, mask=None, qMask=None, repeats=None,
+        minRepDivergence=-1.0, dots=-1, trimT=False, noTrimA=False,
+        trimHardA=False, fastMap=False, out_fmt=None, maxIntron=-1,
+        extendThroughN=False):
+
     if referenceFile is None:
         print("You must specify a reference file", file=sys.stderr)
         return
@@ -218,14 +220,17 @@ def run_pblat(referenceFile: str, readFile: str, pipePattern: str = None, readLe
         print("You must specify a query file", file=sys.stderr)
         return
 
+    if outfile == None:
+        outfile = sys.stdout
+
     if pipePattern is None:
         pipePattern = gettempdir()
 
     if threads == -1:
         threads = len(os.sched_getaffinity(0))
 
-    if out is None:
-        out = "pslx"
+    if out_fmt is None:
+        out_fmt = "pslx"
 
     if tileSize == -1:
         tileSize = 10
@@ -243,13 +248,13 @@ def run_pblat(referenceFile: str, readFile: str, pipePattern: str = None, readLe
                         bytes(pipePattern, UTF8), t, q, prot, ooc, threads, tileSize,
                         stepSize, oneOff, minMatch, minScore, minIdentity, maxGap, noHead,
                         makeOoc, repMatch, mask, qMask, repeats, minRepDivergence, dots,
-                        trimT, noTrimA, trimHardA, fastMap, bytes(out, UTF8), False,
+                        trimT, noTrimA, trimHardA, fastMap, bytes(out_fmt, UTF8), False,
                         maxIntron, extendThroughN)
 
     results = [queue.get() for _ in range(threads)]
     merged_result = merge_results(results)
 
-    write_output(merged_result, stats, sys.stdout)
+    write_output(merged_result, stats, outfile)
 
     # Wait for all the readers to terminate
     for subprocess in reading_subprocesses:
